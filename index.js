@@ -69,6 +69,44 @@ io.on("connection", (socket) => {
 
 console.clear();
 
+
+
 server.listen(PORT, () =>
   console.log(`Server is running on port http://localhost:${PORT}`)
 );
+
+
+
+const rooms = {}; // Store the whiteboard state for each room
+
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+
+  // Join a room
+  socket.on("join room", ({ roomID }) => {
+    socket.join(roomID);
+    console.log(`User ${socket.id} joined room ${roomID}`);
+
+    // Send the current whiteboard state to the new user
+    if (rooms[roomID]) {
+      socket.emit("update whiteboard", rooms[roomID]);
+    }
+  });
+
+  // Receive updates and broadcast to others
+  socket.on("update whiteboard", ({ roomID, doc }) => {
+    rooms[roomID] = doc; // Store the latest whiteboard state
+    socket.to(roomID).emit("update whiteboard", doc); // Broadcast to others in the room
+  });
+
+  // Leave the room
+  socket.on("leave room", ({ roomID }) => {
+    socket.leave(roomID);
+    console.log(`User ${socket.id} left room ${roomID}`);
+  });
+
+  // Handle disconnection
+  socket.on("disconnect", () => {
+    console.log("A user disconnected:", socket.id);
+  });
+});
