@@ -65,6 +65,10 @@ io.on("connection", (socket) => {
     }
     socket.broadcast.emit("user left", socket.id);
   });
+  //stream
+  socket.on("start stream", ({ roomID, stream }) => {
+    socket.to(roomID).emit("receiving host stream", stream);
+  });
 });
 
 console.clear();
@@ -106,6 +110,4 @@ io.on("connection", (socket) => {
   });
 });
 
-socket.on("start stream", ({ roomID, stream }) => {
-  socket.to(roomID).emit("receiving host stream", stream);
-});
+
