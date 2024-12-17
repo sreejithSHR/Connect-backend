@@ -89,7 +89,7 @@ io.on("connection", (socket) => {
       socket.emit("update whiteboard", rooms[roomID]);
     }
   });
-  
+
   // Receive updates and broadcast to others
   socket.on("update whiteboard", ({ roomID, doc }) => {
     rooms[roomID] = doc; // Store the latest whiteboard state
@@ -104,4 +104,8 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("A user disconnected:", socket.id);
   });
+});
+
+socket.on("start stream", ({ roomID, stream }) => {
+  socket.to(roomID).emit("receiving host stream", stream);
 });
