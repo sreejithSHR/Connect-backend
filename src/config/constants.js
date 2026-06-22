@@ -34,6 +34,15 @@ const SOCKET_EVENTS = Object.freeze({
   MEDIA_STATE: "media state",
   STREAM_ENDED: "stream ended",
   ERROR: "error",
+  // Lobby / host approval (meetings)
+  JOIN_REQUEST: "join request", // server -> host: someone wants in
+  ADMIT: "admit", // host -> server
+  DENY: "deny", // host -> server
+  WAITING: "waiting", // server -> guest: wait for host
+  ADMITTED: "admitted", // server -> guest/host: you're in
+  DENIED: "denied", // server -> guest: host declined
+  REQUEST_HANDLED: "request handled", // server -> host: drop from the pending list
+  HOST_CHANGED: "host changed", // server -> room: a new host was assigned
 });
 
 module.exports = { ROLES, MODES, MEDIA_MODES, VIEWER_HLS_THRESHOLD, SOCKET_EVENTS };
