@@ -16,8 +16,9 @@ const requireAuth = async (req, res, next) => {
     const user = await verifyIdToken(token);
     if (!user?.uid) throw createError(401, "Invalid token");
 
-    await userService.upsert(user);
     req.user = user;
+    // Best-effort: a DB hiccup (e.g. missing migration) must not block auth.
+    userService.upsert(user).catch((e) => console.error("[auth] upsert failed:", e.message));
     next();
   } catch (err) {
     if (err.status) return next(err);

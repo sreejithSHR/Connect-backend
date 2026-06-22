@@ -29,8 +29,10 @@ function initSocket(httpServer) {
       const token = socket.handshake.auth?.token;
       const user = await verifyIdToken(token);
       if (!user?.uid) return next(new Error("unauthorized"));
-      await userService.upsert(user);
       socket.data.user = user;
+      // Best-effort: don't reject the socket if the user upsert fails (e.g. DB
+      // not migrated). Presence/signaling don't need the DB.
+      userService.upsert(user).catch((e) => console.error("[socket] upsert failed:", e.message));
       next();
     } catch (err) {
       next(new Error("unauthorized"));
