@@ -9,6 +9,7 @@
 
 const hosts = new Map(); // roomID -> hostSocketId
 const pending = new Map(); // roomID -> Map(socketId -> user)
+const chatDisabled = new Set(); // roomIDs where chat is host-disabled
 
 const lobbyService = {
   getHost(roomID) {
@@ -43,6 +44,14 @@ const lobbyService = {
   },
   clearPending(roomID) {
     pending.delete(roomID);
+  },
+
+  setChatDisabled(roomID, disabled) {
+    if (disabled) chatDisabled.add(roomID);
+    else chatDisabled.delete(roomID);
+  },
+  isChatDisabled(roomID) {
+    return chatDisabled.has(roomID);
   },
 };
 

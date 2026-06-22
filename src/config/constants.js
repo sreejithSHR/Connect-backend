@@ -43,6 +43,11 @@ const SOCKET_EVENTS = Object.freeze({
   DENIED: "denied", // server -> guest: host declined
   REQUEST_HANDLED: "request handled", // server -> host: drop from the pending list
   HOST_CHANGED: "host changed", // server -> room: a new host was assigned
+  // Host moderation
+  FORCE_MUTE: "force mute", // host -> server -> target
+  FORCE_CAMERA_OFF: "force camera off", // host -> server -> target
+  SET_CHAT_DISABLED: "set chat disabled", // host -> server
+  CHAT_DISABLED: "chat disabled", // server -> room
 });
 
 module.exports = { ROLES, MODES, MEDIA_MODES, VIEWER_HLS_THRESHOLD, SOCKET_EVENTS };

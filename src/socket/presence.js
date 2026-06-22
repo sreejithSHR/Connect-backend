@@ -93,6 +93,26 @@ function register(io, socket) {
     socket.emit(SOCKET_EVENTS.REQUEST_HANDLED, { socketId });
   });
 
+  // ---- Host moderation (host-only) ----
+  socket.on(SOCKET_EVENTS.FORCE_MUTE, ({ roomID, socketId } = {}) => {
+    if (roomID && lobbyService.isHost(roomID, socket.id)) {
+      io.to(socketId).emit(SOCKET_EVENTS.FORCE_MUTE);
+    }
+  });
+
+  socket.on(SOCKET_EVENTS.FORCE_CAMERA_OFF, ({ roomID, socketId } = {}) => {
+    if (roomID && lobbyService.isHost(roomID, socket.id)) {
+      io.to(socketId).emit(SOCKET_EVENTS.FORCE_CAMERA_OFF);
+    }
+  });
+
+  socket.on(SOCKET_EVENTS.SET_CHAT_DISABLED, ({ roomID, disabled } = {}) => {
+    if (roomID && lobbyService.isHost(roomID, socket.id)) {
+      lobbyService.setChatDisabled(roomID, disabled);
+      io.to(roomID).emit(SOCKET_EVENTS.CHAT_DISABLED, { disabled: !!disabled });
+    }
+  });
+
   socket.on(SOCKET_EVENTS.MEDIA_STATE, ({ roomID, kind, enabled } = {}) => {
     if (!roomID) return;
     socket.to(roomID).emit(SOCKET_EVENTS.MEDIA_STATE, {

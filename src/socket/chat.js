@@ -1,10 +1,14 @@
 const chatService = require("../services/chat.service");
+const lobbyService = require("../services/lobby.service");
 const { SOCKET_EVENTS } = require("../config/constants");
 
 function register(io, socket) {
   socket.on(SOCKET_EVENTS.SEND_MESSAGE, async (payload = {}) => {
     const { roomID, message } = payload;
     if (!roomID || !message) return;
+
+    // Honour host-disabled chat (the host may still post).
+    if (lobbyService.isChatDisabled(roomID) && !lobbyService.isHost(roomID, socket.id)) return;
 
     const user = socket.data.user;
     const body = String(message).trim().slice(0, 2000);
