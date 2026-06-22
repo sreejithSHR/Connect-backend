@@ -62,13 +62,21 @@ const createMemoryClient = () => {
   };
 };
 
+// Every ioredis client MUST have an "error" listener — without one, a connection
+// or auth error (e.g. NOAUTH) is emitted as an unhandled 'error' event and crashes
+// the whole process. We log and let ioredis auto-reconnect instead.
+const attachErrorHandler = (c, label) =>
+  c.on("error", (err) => console.error(`[redis:${label}] error:`, err.message));
+
 if (env.redisUrl) {
   try {
     client = new Redis(env.redisUrl, { maxRetriesPerRequest: 3, lazyConnect: false });
-    client.on("error", (err) => console.error("[redis] error:", err.message));
+    attachErrorHandler(client, "main");
     client.on("connect", () => console.log("[redis] connected"));
     pubClient = client.duplicate();
     subClient = client.duplicate();
+    attachErrorHandler(pubClient, "pub");
+    attachErrorHandler(subClient, "sub");
     usingRedis = true;
   } catch (err) {
     console.error("[redis] failed to init, using in-memory fallback:", err.message);
