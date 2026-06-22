@@ -1,20 +1,38 @@
 {
-  "name": "server",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "connect-server",
+  "version": "2.0.0",
+  "description": "Connect — scalable Zoom + Twitch backend (Express + Socket.IO + Postgres + Redis)",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "db:up": "docker-compose up -d"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "webrtc",
+    "socket.io",
+    "streaming",
+    "video-conferencing"
+  ],
+  "author": "Envidox Solutions",
   "license": "ISC",
   "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@socket.io/redis-adapter": "^8.3.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.0.0",
-    "express": "^4.17.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "firebase-admin": "^12.7.0",
     "http-errors": "^2.0.0",
-    "socket.io": "^4.4.1"
+    "ioredis": "^5.4.1",
+    "socket.io": "^4.8.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7",
+    "prisma": "^5.22.0"
   }
 }

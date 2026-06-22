@@ -1,0 +1,35 @@
+# Local development infrastructure only.
+# In production use managed Postgres + Redis (Render / Railway / etc.) via env vars.
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: connect-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: connect
+      POSTGRES_PASSWORD: connect
+      POSTGRES_DB: connect
+    ports:
+      - "5432:5432"
+    volumes:
+      - connect_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U connect"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: connect-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - connect_redisdata:/data
+
+volumes:
+  connect_pgdata:
+  connect_redisdata:

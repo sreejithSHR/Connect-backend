@@ -1,0 +1,65 @@
+// Connect — data model (PostgreSQL via Prisma)
+// Ephemeral data (presence, live viewer counts, the live directory) lives in Redis, not here.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id // Firebase UID
+  email     String?
+  name      String?
+  photoURL  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  streams  Stream[]
+  rooms    Room[]
+  messages Message[]
+}
+
+enum MediaMode {
+  interactive // simple-peer WebRTC (low latency)
+  hls // phase 2: HLS/CDN distribution for large audiences
+}
+
+model Stream {
+  id          String    @id // roomID (uuid)
+  hostId      String
+  host        User      @relation(fields: [hostId], references: [id])
+  title       String
+  category    String    @default("Just Chatting")
+  mediaMode   MediaMode @default(interactive)
+  isLive      Boolean   @default(true)
+  peakViewers Int       @default(0)
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+
+  @@index([isLive])
+  @@index([hostId])
+}
+
+model Room {
+  id        String    @id // roomID (uuid)
+  hostId    String
+  host      User      @relation(fields: [hostId], references: [id])
+  mode      String    @default("meet")
+  createdAt DateTime  @default(now())
+  endedAt   DateTime?
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  roomId    String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([roomId, createdAt])
+}
