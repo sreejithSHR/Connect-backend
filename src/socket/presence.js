@@ -122,6 +122,17 @@ function register(io, socket) {
     });
   });
 
+  // Live captions: relay a final transcript line to the rest of the room.
+  socket.on(SOCKET_EVENTS.CAPTION, ({ roomID, text } = {}) => {
+    if (!roomID || !text) return;
+    socket.to(roomID).emit(SOCKET_EVENTS.CAPTION, {
+      socketId: socket.id,
+      user: socket.data.user,
+      text: String(text).slice(0, 500),
+      ts: Date.now(),
+    });
+  });
+
   socket.on("disconnect", async () => {
     const { roomID, role, mode, waiting } = socket.data;
     if (!roomID) return;

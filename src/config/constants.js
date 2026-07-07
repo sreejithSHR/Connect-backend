@@ -48,6 +48,8 @@ const SOCKET_EVENTS = Object.freeze({
   FORCE_CAMERA_OFF: "force camera off", // host -> server -> target
   SET_CHAT_DISABLED: "set chat disabled", // host -> server
   CHAT_DISABLED: "chat disabled", // server -> room
+  // Live captions / transcription
+  CAPTION: "caption", // client -> server -> room (final transcript line)
 });
 
 module.exports = { ROLES, MODES, MEDIA_MODES, VIEWER_HLS_THRESHOLD, SOCKET_EVENTS };
