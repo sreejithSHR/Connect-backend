@@ -1,0 +1,58 @@
+# Media services for ONE GCP e2-standard-2 (2 vCPU / 8 GB) that also runs two
+# light apps. The cpus/mem_limit caps are hard ceilings, so a busy stream can't
+# starve those apps; 0.25 vCPU + ~5 GB stay free for them.
+#
+# Measured at 720p (~1.3 Mbps per received video), LiveKit capped at 2 cores:
+#   6 streams x 30 viewers           ~51% of 2 cores, ~780 MB, 135 Mbps out
+#   1 meeting (25, 3x3) + 3 streams  ~85%,            ~680 MB, 273 Mbps out
+#   2 meetings x 25 (3x3)            ~91% (at limit), ~920 MB
+#   1 streamer -> 250 viewers        ~95% (saturated)
+# Plan for <=75% of that: ~6-8 concurrent 30-viewer streams, or 1 big meeting
+# plus 2-3 streams.
+#
+# On an e2-medium (1 vCPU sustained, the 2nd is burst credit) use cpus: 0.5 /
+# mem_limit: 768m instead: ~2 concurrent 30-viewer streams, no 25-person meetings.
+#
+# Firewall (gcloud):
+#   gcloud compute firewall-rules create connect-media --target-tags=connect-media \
+#     --allow=tcp:3478,udp:3478,tcp:5349,tcp:7881,udp:49152-49999,udp:50000-60000
+# LiveKit signaling (7880) should be reached through your existing reverse proxy
+# as wss://live.<domain>, e.g. nginx:
+#   location / { proxy_pass http://127.0.0.1:7880; proxy_http_version 1.1;
+#                proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade"; }
+#
+# Up:    docker compose -f infra/docker-compose.yml up -d
+# Watch: docker stats connect-livekit connect-coturn
+
+services:
+  livekit:
+    image: livekit/livekit-server:v1.13.9
+    container_name: connect-livekit
+    command: --config /etc/livekit.yaml
+    network_mode: host # WebRTC needs the real ports, no Docker NAT
+    restart: unless-stopped
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:?set in .env}: ${LIVEKIT_API_SECRET:?set in .env}"
+    volumes:
+      - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
+    cpus: 1.75
+    mem_limit: 3g
+
+  coturn:
+    image: coturn/coturn:4.18.0
+    container_name: connect-coturn
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+      - --external-ip=${PUBLIC_IP:?set in .env}/${PRIVATE_IP:?set in .env}
+      - --realm=${TURN_DOMAIN:?set in .env}
+      - --static-auth-secret=${TURN_SECRET:?set in .env}
+      - --cert=/etc/coturn/certs/fullchain.pem
+      - --pkey=/etc/coturn/certs/privkey.pem
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+      - ./coturn/certs:/etc/coturn/certs:ro
+    cpus: 0.25
+    mem_limit: 256m

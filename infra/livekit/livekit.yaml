@@ -1,0 +1,27 @@
+# LiveKit SFU for Connect, sized for a shared GCP e2-medium.
+# Docs: https://docs.livekit.io/home/self-hosting/deployment/
+
+port: 7880 # HTTP/WebSocket signaling; put your reverse proxy (TLS) in front
+
+rtc:
+  tcp_port: 7881 # ICE over TCP when UDP is blocked
+  port_range_start: 50000
+  port_range_end: 60000
+  use_external_ip: true # discovers the VM's external IP via STUN
+
+# API key/secret come from the LIVEKIT_KEYS env var ("<key>: <secret>", secret
+# >= 32 chars), set by the compose file from its .env, so no secret lives here.
+
+room:
+  # Streamer + viewers all count. 1 x 70-viewer 720p stream measured at ~45% of
+  # the 1.75-core cap (~180 MB, 92 Mbps out); the backend's STREAM_MAX_VIEWERS
+  # is the real product cap.
+  max_participants: 100
+  empty_timeout: 300
+
+# coturn (infra/coturn) already owns 3478/5349 on this VM.
+turn:
+  enabled: false
+
+logging:
+  level: info

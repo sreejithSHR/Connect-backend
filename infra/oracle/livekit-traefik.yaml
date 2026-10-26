@@ -1,0 +1,34 @@
+# Coolify -> Servers -> localhost -> Proxy -> Dynamic Configurations -> add a
+# file named livekit.yaml with this content, after replacing LIVE_DOMAIN.
+# Gives LiveKit's signaling a Let's Encrypt wss:// endpoint through Coolify's
+# Traefik; media itself goes straight to the host over UDP 50000-60000.
+#
+# host.docker.internal must resolve inside the proxy container:
+#   docker exec coolify-proxy getent hosts host.docker.internal
+# If it prints nothing, replace it below with the host's Docker gateway IP:
+#   docker network inspect coolify -f '{{(index .IPAM.Config 0).Gateway}}'
+http:
+  routers:
+    livekit:
+      rule: Host(`LIVE_DOMAIN`)
+      entryPoints:
+        - https
+      service: livekit
+      tls:
+        certResolver: letsencrypt
+    livekit-http:
+      rule: Host(`LIVE_DOMAIN`)
+      entryPoints:
+        - http
+      middlewares:
+        - livekit-https
+      service: livekit
+  middlewares:
+    livekit-https:
+      redirectScheme:
+        scheme: https
+  services:
+    livekit:
+      loadBalancer:
+        servers:
+          - url: http://host.docker.internal:7880

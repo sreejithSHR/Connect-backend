@@ -4,7 +4,9 @@ const { SOCKET_EVENTS } = require("../config/constants");
 
 function register(io, socket) {
   socket.on(SOCKET_EVENTS.SEND_MESSAGE, async (payload = {}) => {
-    const { roomID, message } = payload;
+    // Only the room this socket was admitted to — never a client-supplied one.
+    const roomID = socket.data.joined ? socket.data.roomID : null;
+    const { message } = payload;
     if (!roomID || !message) return;
 
     // Honour host-disabled chat (the host may still post).
