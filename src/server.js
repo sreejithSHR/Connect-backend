@@ -2,9 +2,9 @@ const http = require("http");
 const env = require("./config/env");
 const app = require("./app");
 const { initSocket } = require("./socket");
-const { init: initFirebase } = require("./auth/firebaseAdmin");
+const { init: initAuth } = require("./auth/tokens");
 
-initFirebase();
+initAuth();
 
 const server = http.createServer(app);
 initSocket(server);

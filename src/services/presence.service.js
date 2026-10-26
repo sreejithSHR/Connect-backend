@@ -27,6 +27,12 @@ const presenceService = {
     return redis.hlen(usersKey(roomID));
   },
 
+  // One member's presence record ({ user, role }), or null if not in the room.
+  async get(roomID, socketId) {
+    const value = await redis.hget(usersKey(roomID), socketId);
+    return value ? JSON.parse(value) : null;
+  },
+
   // All present members (optionally excluding one socketId, e.g. the caller).
   async members(roomID, excludeSocketId = null) {
     const raw = await redis.hgetall(usersKey(roomID));

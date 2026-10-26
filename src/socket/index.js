@@ -3,8 +3,7 @@ const { createAdapter } = require("@socket.io/redis-adapter");
 
 const env = require("../config/env");
 const { pubClient, subClient, usingRedis } = require("../db/redis");
-const { verifyIdToken } = require("../auth/firebaseAdmin");
-const userService = require("../services/user.service");
+const { verifyToken } = require("../auth/tokens");
 
 const presence = require("./presence");
 const signaling = require("./signaling");
@@ -18,21 +17,20 @@ function initSocket(httpServer) {
   // Horizontal scale-out: share rooms/broadcasts across instances.
   if (usingRedis && pubClient && subClient) {
     io.adapter(createAdapter(pubClient, subClient));
-    console.log("[socket] Redis adapter enabled (multi-instance ready)");
+    // The meeting lobby (lobby.service) is still per-instance, so run ONE
+    // instance until it moves to Redis too.
+    console.log("[socket] Redis adapter enabled (lobby is still single-instance)");
   } else {
     console.warn("[socket] single-instance mode (no Redis adapter)");
   }
 
-  // Authenticated handshake — identity comes from a verified Firebase token.
+  // Authenticated handshake — identity comes from a verified session token.
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
-      const user = await verifyIdToken(token);
+      const user = await verifyToken(token);
       if (!user?.uid) return next(new Error("unauthorized"));
       socket.data.user = user;
-      // Best-effort: don't reject the socket if the user upsert fails (e.g. DB
-      // not migrated). Presence/signaling don't need the DB.
-      userService.upsert(user).catch((e) => console.error("[socket] upsert failed:", e.message));
       next();
     } catch (err) {
       next(new Error("unauthorized"));

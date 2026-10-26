@@ -1,10 +1,19 @@
+const createError = require("http-errors");
 const prisma = require("../db/prisma");
 const presenceService = require("./presence.service");
 const { MEDIA_MODES } = require("../config/constants");
 
 const streamService = {
-  // Host goes live. Idempotent on roomID (re-going-live reuses the row).
+  // Host goes live. Idempotent on roomID (re-going-live reuses the row), but only
+  // for the stream's original host, and never on a meeting's id.
   async goLive({ roomID, hostId, title, category, mediaMode }) {
+    const [existing, meeting] = await Promise.all([
+      prisma.stream.findUnique({ where: { id: roomID } }),
+      prisma.room.findUnique({ where: { id: roomID } }),
+    ]);
+    if (existing && existing.hostId !== hostId) throw createError(403, "Not your stream");
+    if (meeting) throw createError(409, "This id belongs to a meeting");
+
     const data = {
       hostId,
       title: title?.trim() || "Untitled Stream",
@@ -30,6 +39,11 @@ const streamService = {
       where: { id: roomID },
       data: { isLive: false, endedAt: new Date() },
     });
+  },
+
+  // Raw row, used by the socket layer to decide mode + role server-side.
+  async byId(roomID) {
+    return prisma.stream.findUnique({ where: { id: roomID } });
   },
 
   async get(roomID) {

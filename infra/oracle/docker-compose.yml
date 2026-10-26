@@ -1,0 +1,46 @@
+# Media services for Connect on the Oracle A1 (2 OCPU / 12 GB), running NEXT TO
+# Coolify (which runs Postgres, Redis, the backend and the frontend). These two
+# need the host's real UDP/TCP ports, so they're plain compose, not Coolify apps.
+# See README.md for the full deploy.
+#
+#   cp .env.example .env   # fill it in
+#   docker compose up -d
+#   docker stats
+#
+# LiveKit gets most of the CPU: measured on 2 x86 cores at 720p, one 70-viewer
+# stream ~0.8 core, 6 x 30-viewer streams ~1 core, a 25-person meeting + 3
+# streams ~1.7 cores (the rest of the box runs Coolify and the apps).
+
+name: connect-media
+
+services:
+  livekit:
+    image: livekit/livekit-server:v1.13.9
+    command: --config /etc/livekit.yaml
+    network_mode: host # WebRTC needs the real ports, no Docker NAT
+    restart: unless-stopped
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:?set in .env}: ${LIVEKIT_API_SECRET:?set in .env}"
+    volumes:
+      - ../livekit/livekit.yaml:/etc/livekit.yaml:ro
+    cpus: 1.25
+    mem_limit: 2g
+
+  coturn:
+    image: coturn/coturn:4.18.0
+    network_mode: host
+    restart: unless-stopped
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+      - --external-ip=${PUBLIC_IP:?set in .env}/${PRIVATE_IP:?set in .env}
+      - --realm=${LIVE_DOMAIN:?set in .env}
+      - --static-auth-secret=${TURN_SECRET:?set in .env}
+      # Coolify's Traefik keeps its certificates where coturn can't read them,
+      # so TURN runs on 3478 UDP/TCP only (no turns:// on 5349).
+      - --no-tls
+      - --no-dtls
+    volumes:
+      - ../coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    cpus: 0.25
+    mem_limit: 256m

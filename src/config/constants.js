@@ -33,6 +33,7 @@ const SOCKET_EVENTS = Object.freeze({
   MESSAGE: "message",
   MEDIA_STATE: "media state",
   STREAM_ENDED: "stream ended",
+  ROOM_FULL: "room full", // server -> client: capacity reached
   ERROR: "error",
   // Lobby / host approval (meetings)
   JOIN_REQUEST: "join request", // server -> host: someone wants in
