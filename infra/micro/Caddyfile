@@ -1,0 +1,6 @@
+# HTTPS for the API and Socket.IO (reverse_proxy passes WebSockets through).
+# The certificate comes from Let's Encrypt; port 80 must be reachable for it.
+{$API_DOMAIN} {
+	encode gzip
+	reverse_proxy backend:5000
+}
