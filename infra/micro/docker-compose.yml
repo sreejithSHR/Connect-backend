@@ -1,0 +1,102 @@
+# Connect (peer-to-peer) on ONE Oracle Always Free VM.Standard.E2.1.Micro
+# (1/8 OCPU guaranteed with short bursts, 1 GB RAM, ~50 Mbps to the internet).
+# The frontend is on Cloudflare Pages and video goes browser to browser, so
+# this box only carries the API, Socket.IO signalling, the database and TURN
+# relays for users on strict networks. See README.md.
+#
+#   cp .env.example .env              # fill it in
+#   sudo ./setup-host.sh              # once: swap, firewall, DuckDNS, backups
+#   sudo docker compose up -d --build # first build takes a while on 1/8 CPU
+#   sudo docker stats
+#
+# Memory limits add up to ~860 MB worst case; normal use is well under that,
+# and the 2 GB swap from setup-host.sh absorbs spikes (e.g. the first build).
+
+name: connect
+
+services:
+  caddy:
+    image: caddy:2.8.4
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [backend]
+    mem_limit: 96m
+
+  backend:
+    build: ../..
+    image: connect-backend:local
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "5000"
+      ORIGIN: ${APP_ORIGIN:?set in .env}
+      DATABASE_URL: postgresql://connect:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/connect?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?set in .env}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      STREAM_MAX_VIEWERS: ${STREAM_MAX_VIEWERS:-15}
+      MEET_MAX_PARTICIPANTS: ${MEET_MAX_PARTICIPANTS:-6}
+      TURN_URLS: turn:${API_DOMAIN}:3478?transport=udp,turn:${API_DOMAIN}:3478?transport=tcp
+      TURN_SECRET: ${TURN_SECRET:?set in .env}
+      NODE_OPTIONS: --max-old-space-size=192
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+    mem_limit: 320m
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: connect-db # setup-host.sh's nightly backup uses this name
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: connect
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: connect
+    # Sized for 1 GB RAM shared with everything else.
+    command: >
+      postgres -c shared_buffers=64MB -c effective_cache_size=192MB
+      -c work_mem=2MB -c maintenance_work_mem=32MB -c max_connections=30
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "connect"]
+      interval: 10s
+      retries: 30
+    mem_limit: 256m
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Presence and the Socket.IO adapter only: nothing worth persisting, and
+    # evicting presence keys would corrupt room state, so no eviction.
+    command: redis-server --maxmemory 48mb --maxmemory-policy noeviction --save "" --appendonly no
+    mem_limit: 64m
+
+  coturn:
+    image: coturn/coturn:4.18.0
+    network_mode: host # relay ports must be the host's real ports
+    restart: unless-stopped
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+      - --external-ip=${PUBLIC_IP:?set in .env}/${PRIVATE_IP:?set in .env}
+      - --realm=${API_DOMAIN}
+      - --static-auth-secret=${TURN_SECRET}
+      # Caddy's certificates live in its own volume, so TURN runs on 3478
+      # UDP/TCP only (no turns:// on 5349).
+      - --no-tls
+      - --no-dtls
+    volumes:
+      - ../coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    mem_limit: 128m
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pgdata:
