@@ -36,10 +36,17 @@ Peer-to-peer version: video goes directly between browsers. Costs nothing.
 2. Note the instance's **public IP** and **private IP** (Instance → Attached
    VNICs).
 
-## 2. DuckDNS
+## 2. API name
 
-On duckdns.org, create one name (e.g. `connect-api`) pointing at the public
-IP and copy your token.
+Either:
+
+- **Your own domain:** an `A` record, e.g. `connect-api.example.com`, to the
+  public IP. On Cloudflare DNS set it to **DNS only** (grey cloud): TURN's UDP
+  can't go through Cloudflare's proxy, and Caddy needs port 80 for its
+  certificate. Leave `DUCKDNS_TOKEN` empty. If the instance's IP ever
+  changes, update this record and `PUBLIC_IP`.
+- **DuckDNS:** create one name (e.g. `connect-api`) pointing at the public IP
+  and put your token in `DUCKDNS_TOKEN`; a cron keeps it updated.
 
 ## 3. Cloudflare Pages: pick the URL first
 

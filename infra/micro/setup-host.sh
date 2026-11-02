@@ -62,13 +62,17 @@ for p in 80 443 3478; do open tcp $p; done
 for p in 3478 49152:49999; do open udp $p; done
 netfilter-persistent save
 
-echo "== cron: keep the DuckDNS name on this instance's IP (every 5 min)"
-DOMAIN=${API_DOMAIN%.duckdns.org}
-cat > /etc/cron.d/connect-duckdns <<EOF
+if [ -n "${DUCKDNS_TOKEN:-}" ]; then
+  echo "== cron: keep the DuckDNS name on this instance's IP (every 5 min)"
+  DOMAIN=${API_DOMAIN%.duckdns.org}
+  cat > /etc/cron.d/connect-duckdns <<EOF
 */5 * * * * root curl -fsS "https://www.duckdns.org/update?domains=${DOMAIN}&token=${DUCKDNS_TOKEN}&ip=" -o /dev/null
 EOF
-chmod 0600 /etc/cron.d/connect-duckdns # contains the DuckDNS token
-curl -fsS "https://www.duckdns.org/update?domains=${DOMAIN}&token=${DUCKDNS_TOKEN}&ip=" && echo " <- DuckDNS"
+  chmod 0600 /etc/cron.d/connect-duckdns # contains the DuckDNS token
+  curl -fsS "https://www.duckdns.org/update?domains=${DOMAIN}&token=${DUCKDNS_TOKEN}&ip=" && echo " <- DuckDNS"
+else
+  echo "== no DUCKDNS_TOKEN: $API_DOMAIN must be an A record to this instance's public IP"
+fi
 
 echo "== nightly database backup to /var/backups/connect (kept 14 days)"
 cat > /usr/local/bin/connect-backup <<'EOF'
