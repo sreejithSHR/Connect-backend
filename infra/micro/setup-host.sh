@@ -7,8 +7,8 @@
 # Oracle has TWO firewalls; both must allow the ports:
 #   1. VCN Security List (Console -> Networking -> VCN -> subnet -> Security
 #      List -> Add Ingress Rules, source 0.0.0.0/0) for:
-#        TCP 80, 443, 3478
-#        UDP 3478, 49152-49999
+#        TCP 80, 443, 3478, 40000
+#        UDP 3478, 40000, 49152-49999
 #   2. The instance's own iptables (Oracle's Ubuntu image ships it locked down
 #      to SSH only). This script opens it.
 set -euo pipefail
@@ -58,8 +58,8 @@ open() { # open <proto> <port or a:b>
   pos=$(iptables -L INPUT --line-numbers -n | awk '/REJECT/ {print $1; exit}')
   iptables -I INPUT "${pos:-1}" -p "$1" --dport "$2" -j ACCEPT
 }
-for p in 80 443 3478; do open tcp $p; done
-for p in 3478 49152:49999; do open udp $p; done
+for p in 80 443 3478 40000; do open tcp $p; done
+for p in 3478 40000 49152:49999; do open udp $p; done
 netfilter-persistent save
 
 if [ -n "${DUCKDNS_TOKEN:-}" ]; then

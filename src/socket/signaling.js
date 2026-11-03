@@ -4,8 +4,8 @@ const { SOCKET_EVENTS, MODES, ROLES } = require("../config/constants");
 // May this socket exchange WebRTC signals with `targetId`? Both must be admitted
 // to the same room; in a stream, media only flows between the host and a viewer.
 async function canSignal(socket, targetId) {
-  const { roomID, joined, mode, role } = socket.data;
-  if (!joined || typeof targetId !== "string" || targetId === socket.id) return false;
+  const { roomID, joined, mode, role, sfu } = socket.data;
+  if (!joined || sfu || typeof targetId !== "string" || targetId === socket.id) return false;
   const target = await presenceService.get(roomID, targetId);
   if (!target) return false;
   if (mode === MODES.STREAM) return role === ROLES.HOST || target.role === ROLES.HOST;

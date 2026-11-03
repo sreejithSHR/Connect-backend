@@ -8,6 +8,7 @@ const { verifyToken } = require("../auth/tokens");
 const presence = require("./presence");
 const signaling = require("./signaling");
 const chat = require("./chat");
+const sfu = require("./sfu");
 
 function initSocket(httpServer) {
   const io = new Server(httpServer, {
@@ -41,6 +42,7 @@ function initSocket(httpServer) {
     presence.register(io, socket);
     signaling.register(io, socket);
     chat.register(io, socket);
+    sfu.register(io, socket);
   });
 
   return io;

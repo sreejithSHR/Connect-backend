@@ -1,15 +1,16 @@
-# Connect (peer-to-peer) on ONE Oracle Always Free VM.Standard.E2.1.Micro
-# (1/8 OCPU guaranteed with short bursts, 1 GB RAM, ~50 Mbps to the internet).
-# The frontend is on Cloudflare Pages and video goes browser to browser, so
-# this box only carries the API, Socket.IO signalling, the database and TURN
-# relays for users on strict networks. See README.md.
+# Connect on ONE Oracle Always Free VM.Standard.E2.1.Micro (1/8 OCPU
+# guaranteed with short bursts, 1 GB RAM). The frontend is on Cloudflare Pages.
+# Meetings go browser to browser; live streams go through the mediasoup SFU in
+# the backend (host uploads once, this box forwards to every viewer). Also
+# here: the API, Socket.IO signalling, the database and TURN relays for
+# meeting users on strict networks. See README.md.
 #
 #   cp .env.example .env              # fill it in
 #   sudo ./setup-host.sh              # once: swap, firewall, DuckDNS, backups
 #   sudo docker compose up -d --build # first build takes a while on 1/8 CPU
 #   sudo docker stats
 #
-# Memory limits add up to ~860 MB worst case; normal use is well under that,
+# Memory limits add up to ~930 MB worst case; normal use is well under that,
 # and the 2 GB swap from setup-host.sh absorbs spikes (e.g. the first build).
 
 name: connect
@@ -32,6 +33,9 @@ services:
     build: ../..
     image: connect-backend:local
     restart: unless-stopped
+    # Live-stream media (mediasoup SFU inside the backend): every stream on this
+    # one port, UDP with TCP as the fallback for networks that block UDP.
+    ports: ["40000:40000/udp", "40000:40000/tcp"]
     environment:
       NODE_ENV: production
       PORT: "5000"
@@ -44,11 +48,15 @@ services:
       MEET_MAX_PARTICIPANTS: ${MEET_MAX_PARTICIPANTS:-6}
       TURN_URLS: turn:${API_DOMAIN}:3478?transport=udp,turn:${API_DOMAIN}:3478?transport=tcp
       TURN_SECRET: ${TURN_SECRET:?set in .env}
+      SFU_ANNOUNCED_IP: ${PUBLIC_IP:?set in .env}
+      SFU_PORT: "40000"
+      SFU_MAX_VIEWERS: ${SFU_MAX_VIEWERS:-40}
       NODE_OPTIONS: --max-old-space-size=192
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_started }
-    mem_limit: 320m
+    # Node (heap capped at 192 MB) + the mediasoup worker process.
+    mem_limit: 384m
 
   postgres:
     image: postgres:16-alpine

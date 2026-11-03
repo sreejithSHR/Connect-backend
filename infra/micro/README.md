@@ -1,6 +1,8 @@
 # Connect on one Oracle Always Free Micro + Cloudflare Pages
 
-Peer-to-peer version: video goes directly between browsers. Costs nothing.
+Meetings are peer-to-peer (video goes directly between browsers). Live streams
+go through the mediasoup SFU inside the backend: the host uploads once and this
+server forwards to every viewer. Costs nothing.
 
 | Piece | Where |
 |---|---|
@@ -9,16 +11,26 @@ Peer-to-peer version: video goes directly between browsers. Costs nothing.
 
 ## Limits
 
-- **Rooms:** meetings up to 6 people, streams up to 15 viewers at 720p
-  (`MEET_MAX_PARTICIPANTS`, `STREAM_MAX_VIEWERS`). These are limits of the
-  *users'* upload and CPU in a peer-to-peer mesh, not of this server. Bigger
-  rooms need an SFU (LiveKit, see `../oracle/`) on a bigger machine.
-- **The Micro:** 1/8 OCPU guaranteed (short bursts above), 1 GB RAM, ~50 Mbps
-  to the internet. Signalling and the API are light. TURN relays only the
-  ~10-15% of users whose network blocks direct connections, capped at 1 Mbps
-  each and 40 at once (`../coturn/turnserver.conf`). Not yet load-tested on a
-  real Micro; check `sudo docker stats` and `free -m` during the first real
-  sessions.
+- **Meetings:** up to 6 people (`MEET_MAX_PARTICIPANTS`), a limit of the
+  users' upload and CPU in a peer-to-peer mesh. Screen share runs at 30 fps
+  while sending to 3 or fewer people, 15 fps above that.
+- **Streams:** up to 40 viewers (`SFU_MAX_VIEWERS`), screen share up to
+  1080p30, camera 720p. Each video goes out in two simulcast layers and every
+  viewer gets the one their connection can take. Load test (30 viewers,
+  full-motion 1080p screen share, backend capped at 1/8 CPU): all 30 stayed
+  connected at 10-20 fps, some on the 540p layer; the mediasoup worker needed
+  ~18% of a desktop core to give everyone full quality, Node ~0.3%. So the
+  Micro's 1/8 OCPU is the limit for full-motion content; slides and code
+  (mostly static) cost far less. If the SFU can't start, streams fall back to
+  peer-to-peer with `STREAM_MAX_VIEWERS` (15).
+- **The Micro:** 1/8 OCPU guaranteed (short bursts above), 1 GB RAM. A
+  30-viewer stream sends up to ~50 Mbps (1.5 Mbps screen x 30 + audio).
+  Signalling and the API are light. TURN relays only the ~10-15% of meeting
+  users whose network blocks direct connections, capped at 2 Mbps each and 24
+  at once (`../coturn/turnserver.conf`). The load test above ran on a desktop
+  with the backend capped to 1/8 CPU, not on a real Micro; run a rehearsal
+  stream and watch `sudo docker stats` and `free -m` before the first real
+  session.
 - **Idle reclamation:** Oracle may stop Always Free instances whose CPU stays
   under 20% for 7 days. `setup-host.sh` installs a keep-alive cron that holds
   the CPU at ~25% at the lowest priority (the app always wins). If Oracle
@@ -31,8 +43,11 @@ Peer-to-peer version: video goes directly between browsers. Costs nothing.
 
 1. **Security List** of the instance's subnet → Add Ingress Rules, source
    `0.0.0.0/0`:
-   - TCP 80, 443, 3478
-   - UDP 3478, 49152-49999
+   - TCP 80, 443, 3478, 40000
+   - UDP 3478, 40000, 49152-49999
+
+   40000 is the live-stream media port: without it streams connect but viewers
+   never get video.
 2. Note the instance's **public IP** and **private IP** (Instance → Attached
    VNICs).
 

@@ -27,6 +27,16 @@ const env = {
   streamMaxViewers: Number(process.env.STREAM_MAX_VIEWERS) || 15,
   meetMaxParticipants: Number(process.env.MEET_MAX_PARTICIPANTS) || 6,
 
+  // Live-stream SFU (mediasoup): the host uploads once and the server forwards
+  // to every viewer. Empty SFU_ANNOUNCED_IP -> streams stay peer-to-peer.
+  sfu: {
+    announcedAddress: process.env.SFU_ANNOUNCED_IP || "",
+    port: Number(process.env.SFU_PORT) || 40000,
+    maxViewers: Number(process.env.SFU_MAX_VIEWERS) || 40,
+    // What one host may upload, all simulcast layers together.
+    maxIncomingBitrate: (Number(process.env.SFU_MAX_UPLOAD_KBPS) || 4000) * 1000,
+  },
+
   // TURN (coturn with `use-auth-secret`). Empty -> clients get STUN only.
   turn: {
     urls: (process.env.TURN_URLS || "")

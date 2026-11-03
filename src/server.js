@@ -4,14 +4,19 @@ const app = require("./app");
 const { initSocket } = require("./socket");
 const { init: initAuth } = require("./auth/tokens");
 
+const sfu = require("./services/sfu.service");
+
 initAuth();
 
 const server = http.createServer(app);
 initSocket(server);
 
-server.listen(env.port, () => {
-  console.log(`[connect] server listening on http://localhost:${env.port} (${env.nodeEnv})`);
-});
+// The SFU must be up (or known to be off) before the first stream join.
+sfu.init().then(() =>
+  server.listen(env.port, () => {
+    console.log(`[connect] server listening on http://localhost:${env.port} (${env.nodeEnv})`);
+  })
+);
 
 const shutdown = (signal) => {
   console.log(`\n[connect] ${signal} received, shutting down...`);

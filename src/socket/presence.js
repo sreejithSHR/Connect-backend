@@ -3,6 +3,7 @@ const presenceService = require("../services/presence.service");
 const roomService = require("../services/room.service");
 const streamService = require("../services/stream.service");
 const lobbyService = require("../services/lobby.service");
+const sfu = require("../services/sfu.service");
 const { SOCKET_EVENTS, MODES, ROLES } = require("../config/constants");
 
 // Broadcast the current participant list + viewer count to a room.
@@ -27,7 +28,8 @@ async function emitRoomState(io, roomID) {
 const joinedRoom = (socket) => (socket.data.joined ? socket.data.roomID : null);
 
 // Add a socket to the room for real: join, register presence, hand it the list
-// of existing peers so it can build connections.
+// of existing peers so it can build connections (peer-to-peer only; SFU
+// streams connect to the server instead).
 async function completeJoin(io, socket, roomID, role) {
   const user = socket.data.user;
   socket.data.role = role;
@@ -35,7 +37,7 @@ async function completeJoin(io, socket, roomID, role) {
   socket.join(roomID);
   const existing = await presenceService.members(roomID, socket.id);
   await presenceService.join(roomID, socket.id, { user, role });
-  socket.emit(SOCKET_EVENTS.ALL_USERS, existing);
+  if (!socket.data.sfu) socket.emit(SOCKET_EVENTS.ALL_USERS, existing);
   await emitRoomState(io, roomID);
 }
 
@@ -53,19 +55,27 @@ async function joinStream(io, socket, roomID, requestedRole) {
       ? ROLES.HOST
       : ROLES.VIEWER;
 
+  // Through the SFU the host uploads once whatever the audience, so the cap is
+  // the server's; peer-to-peer it's the host's upload.
+  const maxViewers = sfu.enabled() ? env.sfu.maxViewers : env.streamMaxViewers;
   if (role === ROLES.VIEWER) {
     const members = await presenceService.members(roomID);
     const viewers = members.filter((m) => m.role === ROLES.VIEWER).length;
-    if (viewers >= env.streamMaxViewers) {
-      socket.emit(SOCKET_EVENTS.ROOM_FULL, { max: env.streamMaxViewers });
+    if (viewers >= maxViewers) {
+      socket.emit(SOCKET_EVENTS.ROOM_FULL, { max: maxViewers });
       return;
     }
   }
 
   socket.data.roomID = roomID;
   socket.data.mode = MODES.STREAM;
+  if (sfu.enabled()) socket.data.sfu = sfu.join(roomID, socket.id);
   await completeJoin(io, socket, roomID, role);
-  socket.emit(SOCKET_EVENTS.ADMITTED, { host: role === ROLES.HOST, role });
+  socket.emit(SOCKET_EVENTS.ADMITTED, {
+    host: role === ROLES.HOST,
+    role,
+    media: socket.data.sfu ? "sfu" : "p2p",
+  });
 }
 
 // Meetings use a lobby: the first person becomes host; others must be admitted.
